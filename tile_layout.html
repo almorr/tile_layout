@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Раскладка плитки</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f0f0f0; }
+        .language-bar { background: #2196F3; color: white; padding: 15px 20px; }
+        .content { padding: 20px; }
+        .walls-container { display: flex; gap: 20px; margin-top: 20px; overflow-x: auto; }
+        .wall-wrapper { flex-shrink: 0; }
+        .wall-title { font-weight: bold; margin-bottom: 10px; padding: 8px; background: #4CAF50; color: white; border-radius: 5px; text-align: center; }
+        canvas { border: 2px solid #333; cursor: grab; background: white; }
+        .info { margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; }
+        .controls { margin-top: 10px; padding: 10px; background: white; border-radius: 5px; }
+        button { padding: 8px 16px; margin-right: 10px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        input[type="number"], select { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
+        .section { margin-bottom: 15px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="language-bar">
+        <strong>Язык:</strong>
+        <select id="lang" onchange="changeLang()">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    
+    <div class="content">
+        <div class="info">
+            <div class="section">
+                <strong>Стены:</strong>
+                <label>Количество: <select id="numWalls" onchange="updateWalls()">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                </select></label>
+                <div id="wallInputs"></div>
+            </div>
+            
+            <div class="section">
+                <strong>Плитка:</strong>
+                <label>Ширина (см): <input type="number" id="tileW" value="60" style="width: 70px;"></label>
+                <label>Высота (см): <input type="number" id="tileH" value="60" style="width: 70px;"></label>
+                <button onclick="apply()">Применить</button>
+            </div>
+            
+            <div class="section">
+                <strong>Зоны:</strong>
+                <label>Стена: <select id="zoneWall"></select></label>
+                <label>Сторона: <select id="zoneSide"><option value="left">Слева</option><option value="right">Справа</option></select></label>
+                <label>Ширина: <input type="number" id="zoneW" value="90" style="width: 60px;"></label>
+                <label>Высота: <input type="number" id="zoneH" value="200" style="width: 60px;"></label>
+                <label>Цвет: <select id="zoneColor">
+                    <option value="red">Красный</option>
+                    <option value="green">Зеленый</option>
+                    <option value="blue">Синий</option>
+                    <option value="yellow">Желтый</option>
+                </select></label>
+                <button onclick="addZone()" style="background: #f44336;">Добавить</button>
+                <div id="zoneList" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="section">
+                <strong>Окна:</strong>
+                <label>Стена: <select id="winWall"></select></label>
+                <label>Расстояние слева (см): <input type="number" id="winDist" value="50" style="width: 70px;"></label>
+                <label>Расстояние снизу (см): <input type="number" id="winDistBottom" value="100" style="width: 70px;"></label>
+                <label>Ширина (см): <input type="number" id="winW" value="100" style="width: 70px;"></label>
+                <label>Высота (см): <input type="number" id="winH" value="120" style="width: 70px;"></label>
+                <button onclick="addWin()" style="background: #2196F3;">Добавить</button>
+                <div id="winList" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="section">
+                <strong>Краны:</strong>
+                <label>Стена: <select id="tapWall"></select></label>
+                <label>X: <input type="number" id="tapX" value="50" style="width: 60px;"></label>
+                <label>Y: <input type="number" id="tapY" value="100" style="width: 60px;"></label>
+                <label>⌀: <input type="number" id="tapD" value="5" style="width: 50px;"></label>
+                <button onclick="addTap()" style="background: #ff9800;">Добавить</button>
+                <div id="tapList" style="margin-top: 10px;"></div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="reset()">Сбросить сетку</button>
+            <button onclick="saveProject()" style="background: #9C27B0;">💾 Сохранить проект</button>
+            <button onclick="document.getElementById('loadFile').click()" style="background: #FF5722;">📂 Загрузить проект</button>
+            <input type="file" id="loadFile" accept=".json" style="display:none;" onchange="loadProject(event)">
+            <span id="info"></span>
+        </div>
+        
+        <div class="walls-container" id="container"></div>
+    </div>
+
+    <script>
+        const S = 2, SG = 10;
+        let TW = 60, TH = 60, VY = 0;
+        let walls = [{w:327,h:246,c:null,x:null,ox:0},{w:250,h:246,c:null,x:null,ox:0},{w:327,h:246,c:null,x:null,ox:0}];
+        let zones = [], zid = 0, wins = [], wid = 0, taps = [], tid = 0;
+        let drag = false, dw = -1, dx = 0, dy = 0;
+        
+        function updateWalls() {
+            const n = +document.getElementById('numWalls').value;
+            while (walls.length < n) walls.push({w:250,h:246,c:null,x:null,ox:0});
+            while (walls.length > n) walls.pop();
+            updateInputs(); updateSelects(); init();
+        }
+        
+        function updateInputs() {
+            let h = '';
+            walls.forEach((w,i) => h += `<div style="margin-top:5px;"><strong>Стена ${i+1}:</strong> <label>Ш: <input type="number" id="w${i}w" value="${w.w}" min="50" max="1000" style="width:60px;"></label> <label>В: <input type="number" id="w${i}h" value="${w.h}" min="50" max="1000" style="width:60px;"></label></div>`);
+            document.getElementById('wallInputs').innerHTML = h;
+        }
+        
+        function updateSelects() {
+            let o = '';
+            walls.forEach((w,i) => o += `<option value="${i}">${i+1}</option>`);
+            ['zoneWall','winWall','tapWall'].forEach(id => {
+                const e = document.getElementById(id);
+                if (e) e.innerHTML = o;
+            });
+        }
+        
+        function init() {
+            const c = document.getElementById('container');
+            c.innerHTML = '';
+            walls.forEach((w,i) => {
+                const d = document.createElement('div');
+                d.className = 'wall-wrapper';
+                const t = document.createElement('div');
+                t.className = 'wall-title';
+                t.textContent = `Стена ${i+1} (${w.w}×${w.h} см)`;
+                d.appendChild(t);
+                const cv = document.createElement('canvas');
+                cv.width = w.w * S;
+                cv.height = w.h * S;
+                cv.dataset.i = i;
+                w.c = cv;
+                w.x = cv.getContext('2d');
+                cv.onmousedown = md;
+                cv.onmousemove = mm;
+                cv.onmouseup = mu;
+                cv.onmouseleave = mu;
+                d.appendChild(cv);
+                c.appendChild(d);
+            });
+            draw();
+        }
+        
+        function draw() {
+            walls.forEach((w,i) => {
+                const x = w.x, c = w.c;
+                x.clearRect(0,0,c.width,c.height);
+                x.fillStyle = '#fff';
+                x.fillRect(0,0,c.width,c.height);
+                x.strokeStyle = '#ccc';
+                x.lineWidth = 0.5;
+                for (let p = 0; p <= w.w; p += SG) {
+                    x.beginPath();
+                    x.moveTo(p*S,0);
+                    x.lineTo(p*S,c.height);
+                    x.stroke();
+                }
+                for (let p = 0; p <= w.h; p += SG) {
+                    const y = c.height - p*S;
+                    x.beginPath();
+                    x.moveTo(0,y);
+                    x.lineTo(c.width,y);
+                    x.stroke();
+                }
+                x.strokeStyle = '#2196F3';
+                x.lineWidth = 2;
+                const sx = (w.ox % TW) - TW;
+                const sy = (VY % TH) - TH;
+                for (let p = sx; p <= w.w; p += TW) {
+                    x.beginPath();
+                    x.moveTo(p*S,0);
+                    x.lineTo(p*S,c.height);
+                    x.stroke();
+                }
+                for (let p = sy; p <= w.h; p += TH) {
+                    const y = c.height - p*S;
+                    x.beginPath();
+                    x.moveTo(0,y);
+                    x.lineTo(c.width,y);
+                    x.stroke();
+                }
+                const cm = {red:'rgba(255,0,0,0.15)',green:'rgba(0,255,0,0.15)',blue:'rgba(0,0,255,0.15)',yellow:'rgba(255,255,0,0.25)'};
+                const cs = {red:'#f00',green:'#0f0',blue:'#00f',yellow:'#fc0'};
+                zones.filter(z => z.wi === i).forEach(z => {
+                    const zx = z.s === 'left' ? 0 : (w.w - z.w) * S;
+                    const zy = c.height - z.h * S;
+                    x.fillStyle = cm[z.c];
+                    x.fillRect(zx,zy,z.w*S,z.h*S);
+                    x.strokeStyle = cs[z.c];
+                    x.lineWidth = 3;
+                    x.strokeRect(zx,zy,z.w*S,z.h*S);
+                });
+                wins.filter(wn => wn.wi === i).forEach(wn => {
+                    const wx = wn.d * S;
+                    const wy = c.height - (wn.db + wn.h) * S;
+                    x.fillStyle = 'rgba(135,206,250,0.3)';
+                    x.fillRect(wx,wy,wn.w*S,wn.h*S);
+                    x.strokeStyle = '#1976D2';
+                    x.lineWidth = 4;
+                    x.strokeRect(wx,wy,wn.w*S,wn.h*S);
+                    x.beginPath();
+                    x.moveTo(wx,wy);
+                    x.lineTo(wx+wn.w*S,wy+wn.h*S);
+                    x.stroke();
+                    x.beginPath();
+                    x.moveTo(wx+wn.w*S,wy);
+                    x.lineTo(wx,wy+wn.h*S);
+                    x.stroke();
+                });
+                taps.filter(t => t.wi === i).forEach(t => {
+                    const tx = t.x*S, ty = c.height-t.y*S, r = (t.d/2)*S;
+                    x.strokeStyle = '#FF6B00';
+                    x.lineWidth = 3;
+                    const sz = r+5;
+                    x.beginPath();
+                    x.moveTo(tx-sz,ty-sz);
+                    x.lineTo(tx+sz,ty+sz);
+                    x.stroke();
+                    x.beginPath();
+                    x.moveTo(tx+sz,ty-sz);
+                    x.lineTo(tx-sz,ty+sz);
+                    x.stroke();
+                    x.beginPath();
+                    x.arc(tx,ty,r,0,Math.PI*2);
+                    x.stroke();
+                    x.fillStyle = '#FF6B00';
+                    x.font = 'bold 12px Arial';
+                    x.fillText(`⌀${t.d}`,tx+r+8,ty-5);
+                });
+            });
+            document.getElementById('info').textContent = `Смещение: ↕ ${VY.toFixed(1)} см`;
+        }
+        
+        function md(e) {
+            drag = true;
+            dw = +e.target.dataset.i;
+            const r = e.target.getBoundingClientRect();
+            dx = e.clientX - r.left;
+            dy = e.clientY - r.top;
+        }
+        
+        function mm(e) {
+            if (!drag || dw === -1) return;
+            const r = walls[dw].c.getBoundingClientRect();
+            const cx = e.clientX - r.left;
+            const cy = e.clientY - r.top;
+            walls[dw].ox += (cx - dx) / S;
+            VY += -(cy - dy) / S;
+            dx = cx;
+            dy = cy;
+            draw();
+        }
+        
+        function mu() {
+            drag = false;
+            dw = -1;
+        }
+        
+        function reset() {
+            walls.forEach(w => w.ox = 0);
+            VY = 0;
+            draw();
+        }
+        
+        function addZone() {
+            const wi = +document.getElementById('zoneWall').value;
+            const s = document.getElementById('zoneSide').value;
+            const w = +document.getElementById('zoneW').value;
+            const h = +document.getElementById('zoneH').value;
+            const c = document.getElementById('zoneColor').value;
+            if (!w || !h) return;
+            zones.push({id:zid++,wi,s,w,h,c});
+            updateZoneList();
+            draw();
+        }
+        
+        function delZone(id) {
+            zones = zones.filter(z => z.id !== id);
+            updateZoneList();
+            draw();
+        }
+        
+        function updateZoneList() {
+            const e = document.getElementById('zoneList');
+            if (!zones.length) {
+                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+                return;
+            }
+            const em = {red:'🔴',green:'🟢',blue:'🔵',yellow:'🟡'};
+            let h = '';
+            zones.forEach(z => {
+                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>${em[z.c]} Стена ${z.wi+1}: ${z.w}×${z.h} см</span><button onclick="delZone(${z.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+            });
+            e.innerHTML = h;
+        }
+        
+        function addWin() {
+            const wi = +document.getElementById('winWall').value;
+            const d = +document.getElementById('winDist').value;
+            const db = +document.getElementById('winDistBottom').value;
+            const w = +document.getElementById('winW').value;
+            const h = +document.getElementById('winH').value;
+            if (!w || !h) return;
+            wins.push({id:wid++,wi,d,db,w,h});
+            updateWinList();
+            draw();
+        }
+        
+        function delWin(id) {
+            wins = wins.filter(w => w.id !== id);
+            updateWinList();
+            draw();
+        }
+        
+        function updateWinList() {
+            const e = document.getElementById('winList');
+            if (!wins.length) {
+                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+                return;
+            }
+            let h = '';
+            wins.forEach(w => {
+                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>🪟 Стена ${w.wi+1}: ←${w.d} см, ↑${w.db} см, ${w.w}×${w.h} см</span><button onclick="delWin(${w.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+            });
+            e.innerHTML = h;
+        }
+        
+        function addTap() {
+            const wi = +document.getElementById('tapWall').value;
+            const x = +document.getElementById('tapX').value;
+            const y = +document.getElementById('tapY').value;
+            const d = +document.getElementById('tapD').value;
+            if (!x || !y || !d) return;
+            taps.push({id:tid++,wi,x,y,d});
+            updateTapList();
+            draw();
+        }
+        
+        function delTap(id) {
+            taps = taps.filter(t => t.id !== id);
+            updateTapList();
+            draw();
+        }
+        
+        function updateTapList() {
+            const e = document.getElementById('tapList');
+            if (!taps.length) {
+                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+                return;
+            }
+            let h = '';
+            taps.forEach(t => {
+                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>🚰 Стена ${t.wi+1}: ⌀${t.d} см</span><button onclick="delTap(${t.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+            });
+            e.innerHTML = h;
+        }
+        
+        function apply() {
+            walls.forEach((w,i) => {
+                const wEl = document.getElementById(`w${i}w`);
+                const hEl = document.getElementById(`w${i}h`);
+                if (wEl) {
+                    const wv = +wEl.value;
+                    if (wv >= 50 && wv <= 1000) w.w = wv;
+                }
+                if (hEl) {
+                    const hv = +hEl.value;
+                    if (hv >= 50 && hv <= 1000) w.h = hv;
+                }
+            });
+            const tw = +document.getElementById('tileW').value;
+            const th = +document.getElementById('tileH').value;
+            if (tw >= 10 && tw <= 200) TW = tw;
+            if (th >= 10 && th <= 200) TH = th;
+            walls.forEach(w => w.ox = 0);
+            VY = 0;
+            init();
+        }
+        
+        function changeLang() {
+            // Заглушка для смены языка
+        }
+        
+        function saveProject() {
+            const project = {
+                version: '1.0',
+                date: new Date().toISOString(),
+                settings: {
+                    tileWidth: TW,
+                    tileHeight: TH,
+                    verticalOffset: VY
+                },
+                walls: walls.map(w => ({
+                    width: w.w,
+                    height: w.h,
+                    horizontalOffset: w.ox
+                })),
+                zones: zones.map(z => ({
+                    wallIndex: z.wi,
+                    side: z.s,
+                    width: z.w,
+                    height: z.h,
+                    color: z.c
+                })),
+                windows: wins.map(w => ({
+                    wallIndex: w.wi,
+                    distance: w.d,
+                    distanceBottom: w.db,
+                    width: w.w,
+                    height: w.h
+                })),
+                taps: taps.map(t => ({
+                    wallIndex: t.wi,
+                    x: t.x,
+                    y: t.y,
+                    diameter: t.d
+                }))
+            };
+            
+            const json = JSON.stringify(project, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tile-layout-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Проект сохранен!');
+        }
+        
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const project = JSON.parse(e.target.result);
+                    
+                    // Загрузка настроек
+                    TW = project.settings.tileWidth || 60;
+                    TH = project.settings.tileHeight || 60;
+                    VY = project.settings.verticalOffset || 0;
+                    
+                    // Загрузка стен
+                    walls = project.walls.map(w => ({
+                        w: w.width,
+                        h: w.height,
+                        c: null,
+                        x: null,
+                        ox: w.horizontalOffset || 0
+                    }));
+                    
+                    // Загрузка зон
+                    zones = project.zones.map((z, idx) => ({
+                        id: idx,
+                        wi: z.wallIndex,
+                        s: z.side,
+                        w: z.width,
+                        h: z.height,
+                        c: z.color
+                    }));
+                    zid = zones.length;
+                    
+                    // Загрузка окон
+                    wins = project.windows.map((w, idx) => ({
+                        id: idx,
+                        wi: w.wallIndex,
+                        d: w.distance,
+                        db: w.distanceBottom,
+                        w: w.width,
+                        h: w.height
+                    }));
+                    wid = wins.length;
+                    
+                    // Загрузка кранов
+                    taps = project.taps.map((t, idx) => ({
+                        id: idx,
+                        wi: t.wallIndex,
+                        x: t.x,
+                        y: t.y,
+                        d: t.diameter
+                    }));
+                    tid = taps.length;
+                    
+                    // Обновление интерфейса
+                    document.getElementById('numWalls').value = walls.length;
+                    document.getElementById('tileW').value = TW;
+                    document.getElementById('tileH').value = TH;
+                    
+                    updateInputs();
+                    updateSelects();
+                    init();
+                    updateZoneList();
+                    updateWinList();
+                    updateTapList();
+                    
+                    alert('Проект загружен!');
+                } catch (err) {
+                    alert('Ошибка загрузки файла: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Очистка input для возможности загрузки того же файла повторно
+            event.target.value = '';
+        }
+        
+        updateInputs();
+        updateSelects();
+        init();
+        updateZoneList();
+        updateWinList();
+        updateTapList();
+    </script>
+</body>
+</html>
