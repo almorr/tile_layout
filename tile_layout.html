@@ -1,532 +1,543 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Раскладка плитки</title>
+    <title>Planificateur de carrelage</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f0f0f0; }
-        .language-bar { background: #2196F3; color: white; padding: 15px 20px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #f0f0f0; }
+        .lang-bar { background: #2196F3; color: white; padding: 15px 20px; }
+        .lang-bar select { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
         .content { padding: 20px; }
-        .walls-container { display: flex; gap: 20px; margin-top: 20px; overflow-x: auto; }
-        .wall-wrapper { flex-shrink: 0; }
-        .wall-title { font-weight: bold; margin-bottom: 10px; padding: 8px; background: #4CAF50; color: white; border-radius: 5px; text-align: center; }
-        canvas { border: 2px solid #333; cursor: grab; background: white; }
-        .info { margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; }
-        .controls { margin-top: 10px; padding: 10px; background: white; border-radius: 5px; }
-        button { padding: 8px 16px; margin-right: 10px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
-        input[type="number"], select { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
-        .section { margin-bottom: 15px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+        .section { margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .walls-grid { display: flex; gap: 20px; margin-top: 20px; overflow-x: auto; padding: 10px; }
+        .wall-item { flex-shrink: 0; }
+        .wall-header { font-weight: bold; margin-bottom: 10px; padding: 8px; background: #4CAF50; color: white; border-radius: 5px; text-align: center; }
+        canvas { border: 2px solid #333; cursor: grab; background: white; display: block; }
+        canvas:active { cursor: grabbing; }
+        button { padding: 8px 16px; margin: 5px 5px 5px 0; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        button:hover { background: #45a049; }
+        input[type="number"], select { padding: 5px; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; }
+        label { margin-right: 10px; font-size: 14px; }
+        .item-list { margin-top: 10px; max-height: 150px; overflow-y: auto; }
+        .item { padding: 5px; margin-top: 5px; background: #f9f9f9; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .del-btn { padding: 3px 8px; background: #dc3545; font-size: 12px; margin: 0; }
+        .wall-input { display: inline-block; margin: 5px 10px 5px 0; }
     </style>
 </head>
 <body>
-    <div class="language-bar">
-        <strong>Язык:</strong>
-        <select id="lang" onchange="changeLang()">
+    <div class="lang-bar">
+        <strong id="t-lang">Langue</strong>:
+        <select id="langSelect" onchange="switchLang()">
+            <option value="fr" selected>Français</option>
             <option value="ru">Русский</option>
             <option value="en">English</option>
         </select>
     </div>
     
     <div class="content">
-        <div class="info">
-            <div class="section">
-                <strong>Стены:</strong>
-                <label>Количество: <select id="numWalls" onchange="updateWalls()">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3" selected>3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                </select></label>
-                <div id="wallInputs"></div>
-            </div>
-            
-            <div class="section">
-                <strong>Плитка:</strong>
-                <label>Ширина (см): <input type="number" id="tileW" value="60" style="width: 70px;"></label>
-                <label>Высота (см): <input type="number" id="tileH" value="60" style="width: 70px;"></label>
-                <button onclick="apply()">Применить</button>
-            </div>
-            
-            <div class="section">
-                <strong>Зоны:</strong>
-                <label>Стена: <select id="zoneWall"></select></label>
-                <label>Сторона: <select id="zoneSide"><option value="left">Слева</option><option value="right">Справа</option></select></label>
-                <label>Ширина: <input type="number" id="zoneW" value="90" style="width: 60px;"></label>
-                <label>Высота: <input type="number" id="zoneH" value="200" style="width: 60px;"></label>
-                <label>Цвет: <select id="zoneColor">
-                    <option value="red">Красный</option>
-                    <option value="green">Зеленый</option>
-                    <option value="blue">Синий</option>
-                    <option value="yellow">Желтый</option>
-                </select></label>
-                <button onclick="addZone()" style="background: #f44336;">Добавить</button>
-                <div id="zoneList" style="margin-top: 10px;"></div>
-            </div>
-            
-            <div class="section">
-                <strong>Окна:</strong>
-                <label>Стена: <select id="winWall"></select></label>
-                <label>Расстояние слева (см): <input type="number" id="winDist" value="50" style="width: 70px;"></label>
-                <label>Расстояние снизу (см): <input type="number" id="winDistBottom" value="100" style="width: 70px;"></label>
-                <label>Ширина (см): <input type="number" id="winW" value="100" style="width: 70px;"></label>
-                <label>Высота (см): <input type="number" id="winH" value="120" style="width: 70px;"></label>
-                <button onclick="addWin()" style="background: #2196F3;">Добавить</button>
-                <div id="winList" style="margin-top: 10px;"></div>
-            </div>
-            
-            <div class="section">
-                <strong>Краны:</strong>
-                <label>Стена: <select id="tapWall"></select></label>
-                <label>X: <input type="number" id="tapX" value="50" style="width: 60px;"></label>
-                <label>Y: <input type="number" id="tapY" value="100" style="width: 60px;"></label>
-                <label>⌀: <input type="number" id="tapD" value="5" style="width: 50px;"></label>
-                <button onclick="addTap()" style="background: #ff9800;">Добавить</button>
-                <div id="tapList" style="margin-top: 10px;"></div>
-            </div>
+        <div class="section">
+            <strong id="t-walls">Murs</strong>: 
+            <select id="numWalls" onchange="changeWallCount()">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+            </select>
+            <div id="wallInputs" style="margin-top: 10px;"></div>
         </div>
         
-        <div class="controls">
-            <button onclick="reset()">Сбросить сетку</button>
-            <button onclick="saveProject()" style="background: #9C27B0;">💾 Сохранить проект</button>
-            <button onclick="document.getElementById('loadFile').click()" style="background: #FF5722;">📂 Загрузить проект</button>
-            <input type="file" id="loadFile" accept=".json" style="display:none;" onchange="loadProject(event)">
-            <span id="info"></span>
+        <div class="section">
+            <strong id="t-tile">Carrelage</strong>: 
+            <label><span id="t-width">Largeur</span> (cm): <input type="number" id="tileW" value="60" style="width: 70px;"></label>
+            <label><span id="t-height">Hauteur</span> (cm): <input type="number" id="tileH" value="60" style="width: 70px;"></label>
+            <button onclick="applyAll()" id="t-apply">Appliquer</button>
         </div>
         
-        <div class="walls-container" id="container"></div>
+        <div class="section">
+            <strong id="t-zones">Zones</strong>:
+            <label><span id="t-wall">Mur</span>: <select id="zoneWall"></select></label>
+            <label><span id="t-side">Côté</span>: <select id="zoneSide"><option value="left" id="t-left1">Gauche</option><option value="right" id="t-right1">Droite</option></select></label>
+            <label><span id="t-width2">Largeur</span>: <input type="number" id="zoneW" value="90" style="width: 60px;"></label>
+            <label><span id="t-height2">Hauteur</span>: <input type="number" id="zoneH" value="200" style="width: 60px;"></label>
+            <label><span id="t-color">Couleur</span>: <select id="zoneColor">
+                <option value="red" id="t-red">Rouge</option>
+                <option value="green" id="t-green">Vert</option>
+                <option value="blue" id="t-blue">Bleu</option>
+                <option value="yellow" id="t-yellow">Jaune</option>
+            </select></label>
+            <button onclick="addZone()" style="background: #f44336;" id="t-add-zone">Ajouter</button>
+            <div id="zoneList" class="item-list"></div>
+        </div>
+        
+        <div class="section">
+            <strong id="t-windows">Fenêtres</strong>:
+            <label><span id="t-wall2">Mur</span>: <select id="winWall"></select></label>
+            <label><span id="t-dist-left">Distance depuis la gauche</span> (cm): <input type="number" id="winLeft" value="50" style="width: 70px;"></label>
+            <label><span id="t-dist-bottom">Distance depuis le bas</span> (cm): <input type="number" id="winBottom" value="100" style="width: 70px;"></label>
+            <label><span id="t-width3">Largeur</span> (cm): <input type="number" id="winW" value="100" style="width: 70px;"></label>
+            <label><span id="t-height3">Hauteur</span> (cm): <input type="number" id="winH" value="120" style="width: 70px;"></label>
+            <button onclick="addWin()" style="background: #2196F3;" id="t-add-win">Ajouter</button>
+            <div id="winList" class="item-list"></div>
+        </div>
+        
+        <div class="section">
+            <strong id="t-taps">Robinets</strong>:
+            <label><span id="t-wall3">Mur</span>: <select id="tapWall"></select></label>
+            <label>X (cm): <input type="number" id="tapX" value="50" style="width: 60px;"></label>
+            <label>Y (cm): <input type="number" id="tapY" value="100" style="width: 60px;"></label>
+            <label>⌀ (cm): <input type="number" id="tapD" value="5" style="width: 50px;"></label>
+            <button onclick="addTap()" style="background: #ff9800;" id="t-add-tap">Ajouter</button>
+            <div id="tapList" class="item-list"></div>
+        </div>
+        
+        <div class="section">
+            <button onclick="resetAll()" id="t-reset">Réinitialiser la grille</button>
+            <button onclick="saveData()" style="background: #9C27B0;" id="t-save">💾 Enregistrer</button>
+            <button onclick="document.getElementById('fileInput').click()" style="background: #FF5722;" id="t-load">📂 Charger</button>
+            <input type="file" id="fileInput" accept=".json" style="display:none;" onchange="loadData(event)">
+            <span id="offsetInfo"></span>
+        </div>
+        
+        <div class="walls-grid" id="canvasContainer"></div>
     </div>
 
     <script>
-        const S = 2, SG = 10;
-        let TW = 60, TH = 60, VY = 0;
-        let walls = [{w:327,h:246,c:null,x:null,ox:0},{w:250,h:246,c:null,x:null,ox:0},{w:327,h:246,c:null,x:null,ox:0}];
-        let zones = [], zid = 0, wins = [], wid = 0, taps = [], tid = 0;
-        let drag = false, dw = -1, dx = 0, dy = 0;
+        const SCALE = 2, GRID = 10;
+        let lang = 'fr';
+        let tileW = 60, tileH = 60, verticalOffset = 0;
+        let walls = [{w:300,h:250,canvas:null,ctx:null,offsetX:0}];
+        let zones = [], zoneCounter = 0;
+        let windows = [], winCounter = 0;
+        let taps = [], tapCounter = 0;
+        let dragging = false, dragWall = -1, dragStartX = 0, dragStartY = 0;
         
-        function updateWalls() {
-            const n = +document.getElementById('numWalls').value;
-            while (walls.length < n) walls.push({w:250,h:246,c:null,x:null,ox:0});
-            while (walls.length > n) walls.pop();
-            updateInputs(); updateSelects(); init();
+        const T = {
+            fr: {lang:'Langue',walls:'Murs',wall:'Mur',width:'Largeur',height:'Hauteur',tile:'Carrelage',apply:'Appliquer',zones:'Zones',side:'Côté',left:'Gauche',right:'Droite',color:'Couleur',red:'Rouge',green:'Vert',blue:'Bleu',yellow:'Jaune',addZone:'Ajouter',windows:'Fenêtres',distLeft:'Distance depuis la gauche',distBottom:'Distance depuis le bas',addWin:'Ajouter',taps:'Robinets',addTap:'Ajouter',reset:'Réinitialiser la grille',save:'Enregistrer',load:'Charger',offset:'Décalage',del:'×',none:'Aucun'},
+            ru: {lang:'Язык',walls:'Стены',wall:'Стена',width:'Ширина',height:'Высота',tile:'Плитка',apply:'Применить',zones:'Зоны',side:'Сторона',left:'Слева',right:'Справа',color:'Цвет',red:'Красный',green:'Зеленый',blue:'Синий',yellow:'Желтый',addZone:'Добавить',windows:'Окна',distLeft:'Расстояние слева',distBottom:'Расстояние снизу',addWin:'Добавить',taps:'Краны',addTap:'Добавить',reset:'Сбросить сетку',save:'Сохранить',load:'Загрузить',offset:'Смещение',del:'×',none:'Нет'},
+            en: {lang:'Language',walls:'Walls',wall:'Wall',width:'Width',height:'Height',tile:'Tile',apply:'Apply',zones:'Zones',side:'Side',left:'Left',right:'Right',color:'Color',red:'Red',green:'Green',blue:'Blue',yellow:'Yellow',addZone:'Add',windows:'Windows',distLeft:'Distance from left',distBottom:'Distance from bottom',addWin:'Add',taps:'Taps',addTap:'Add',reset:'Reset grid',save:'Save',load:'Load',offset:'Offset',del:'×',none:'None'}
+        };
+        
+        function t(key) { return T[lang][key] || key; }
+        function setTxt(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
+        
+        function switchLang() {
+            lang = document.getElementById('langSelect').value;
+            
+            // Обновляем все текстовые элементы
+            setTxt('t-lang', t('lang'));
+            setTxt('t-walls', t('walls'));
+            setTxt('t-wall', t('wall'));
+            setTxt('t-wall2', t('wall'));
+            setTxt('t-wall3', t('wall'));
+            setTxt('t-width', t('width'));
+            setTxt('t-height', t('height'));
+            setTxt('t-width2', t('width'));
+            setTxt('t-height2', t('height'));
+            setTxt('t-width3', t('width'));
+            setTxt('t-height3', t('height'));
+            setTxt('t-tile', t('tile'));
+            setTxt('t-apply', t('apply'));
+            setTxt('t-zones', t('zones'));
+            setTxt('t-side', t('side'));
+            setTxt('t-left1', t('left'));
+            setTxt('t-right1', t('right'));
+            setTxt('t-color', t('color'));
+            setTxt('t-red', t('red'));
+            setTxt('t-green', t('green'));
+            setTxt('t-blue', t('blue'));
+            setTxt('t-yellow', t('yellow'));
+            setTxt('t-add-zone', t('addZone'));
+            setTxt('t-windows', t('windows'));
+            setTxt('t-dist-left', t('distLeft'));
+            setTxt('t-dist-bottom', t('distBottom'));
+            setTxt('t-add-win', t('addWin'));
+            setTxt('t-taps', t('taps'));
+            setTxt('t-add-tap', t('addTap'));
+            setTxt('t-reset', t('reset'));
+            setTxt('t-save', t('save'));
+            setTxt('t-load', t('load'));
+            
+            // Обновляем динамический контент
+            updateWallInputs();
+            refreshSelects();
+            
+            // Обновляем заголовки стен
+            const headers = document.querySelectorAll('.wall-header');
+            headers.forEach((header, i) => {
+                if (walls[i]) {
+                    header.textContent = `${t('wall')} ${i+1} (${walls[i].w}×${walls[i].h} cm)`;
+                }
+            });
+            
+            // Обновляем списки
+            updateZoneList();
+            updateWinList();
+            updateTapList();
+            
+            // Обновляем информацию о смещении
+            document.getElementById('offsetInfo').textContent = `${t('offset')}: ↕ ${verticalOffset.toFixed(1)} cm`;
         }
         
-        function updateInputs() {
-            let h = '';
-            walls.forEach((w,i) => h += `<div style="margin-top:5px;"><strong>Стена ${i+1}:</strong> <label>Ш: <input type="number" id="w${i}w" value="${w.w}" min="50" max="1000" style="width:60px;"></label> <label>В: <input type="number" id="w${i}h" value="${w.h}" min="50" max="1000" style="width:60px;"></label></div>`);
-            document.getElementById('wallInputs').innerHTML = h;
+        function changeWallCount() {
+            const n = parseInt(document.getElementById('numWalls').value);
+            while (walls.length < n) walls.push({w:250,h:246,canvas:null,ctx:null,offsetX:0});
+            walls = walls.slice(0, n);
+            updateWallInputs();
+            refreshSelects();
+            initCanvas();
         }
         
-        function updateSelects() {
-            let o = '';
-            walls.forEach((w,i) => o += `<option value="${i}">${i+1}</option>`);
-            ['zoneWall','winWall','tapWall'].forEach(id => {
-                const e = document.getElementById(id);
-                if (e) e.innerHTML = o;
+        function updateWallInputs() {
+            let html = '';
+            walls.forEach((wall, i) => {
+                html += `<div class="wall-input"><strong>${t('wall')} ${i+1}:</strong> <label>${t('width')}: <input type="number" id="wallW${i}" value="${wall.w}" min="50" max="1000" style="width:65px;"></label> <label>${t('height')}: <input type="number" id="wallH${i}" value="${wall.h}" min="50" max="1000" style="width:65px;"></label></div>`;
+            });
+            document.getElementById('wallInputs').innerHTML = html;
+        }
+        
+        function refreshSelects() {
+            let opts = '';
+            walls.forEach((w, i) => opts += `<option value="${i}">${i+1}</option>`);
+            ['zoneWall', 'winWall', 'tapWall'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = opts;
             });
         }
         
-        function init() {
-            const c = document.getElementById('container');
-            c.innerHTML = '';
-            walls.forEach((w,i) => {
-                const d = document.createElement('div');
-                d.className = 'wall-wrapper';
-                const t = document.createElement('div');
-                t.className = 'wall-title';
-                t.textContent = `Стена ${i+1} (${w.w}×${w.h} см)`;
-                d.appendChild(t);
-                const cv = document.createElement('canvas');
-                cv.width = w.w * S;
-                cv.height = w.h * S;
-                cv.dataset.i = i;
-                w.c = cv;
-                w.x = cv.getContext('2d');
-                cv.onmousedown = md;
-                cv.onmousemove = mm;
-                cv.onmouseup = mu;
-                cv.onmouseleave = mu;
-                d.appendChild(cv);
-                c.appendChild(d);
+        function initCanvas() {
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = '';
+            walls.forEach((wall, i) => {
+                const div = document.createElement('div');
+                div.className = 'wall-item';
+                const header = document.createElement('div');
+                header.className = 'wall-header';
+                header.textContent = `${t('wall')} ${i+1} (${wall.w}×${wall.h} cm)`;
+                div.appendChild(header);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = wall.w * SCALE;
+                canvas.height = wall.h * SCALE;
+                canvas.dataset.idx = i;
+                wall.canvas = canvas;
+                wall.ctx = canvas.getContext('2d');
+                
+                canvas.onmousedown = (e) => {
+                    dragging = true;
+                    dragWall = parseInt(e.target.dataset.idx);
+                    const rect = e.target.getBoundingClientRect();
+                    dragStartX = e.clientX - rect.left;
+                    dragStartY = e.clientY - rect.top;
+                };
+                canvas.onmousemove = (e) => {
+                    if (!dragging || dragWall !== i) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    walls[dragWall].offsetX += (x - dragStartX) / SCALE;
+                    verticalOffset -= (y - dragStartY) / SCALE;
+                    dragStartX = x;
+                    dragStartY = y;
+                    drawAll();
+                };
+                canvas.onmouseup = canvas.onmouseleave = () => { dragging = false; dragWall = -1; };
+                
+                div.appendChild(canvas);
+                container.appendChild(div);
             });
-            draw();
+            drawAll();
         }
         
-        function draw() {
-            walls.forEach((w,i) => {
-                const x = w.x, c = w.c;
-                x.clearRect(0,0,c.width,c.height);
-                x.fillStyle = '#fff';
-                x.fillRect(0,0,c.width,c.height);
-                x.strokeStyle = '#ccc';
-                x.lineWidth = 0.5;
-                for (let p = 0; p <= w.w; p += SG) {
-                    x.beginPath();
-                    x.moveTo(p*S,0);
-                    x.lineTo(p*S,c.height);
-                    x.stroke();
-                }
-                for (let p = 0; p <= w.h; p += SG) {
-                    const y = c.height - p*S;
-                    x.beginPath();
-                    x.moveTo(0,y);
-                    x.lineTo(c.width,y);
-                    x.stroke();
-                }
-                x.strokeStyle = '#2196F3';
-                x.lineWidth = 2;
-                const sx = (w.ox % TW) - TW;
-                const sy = (VY % TH) - TH;
-                for (let p = sx; p <= w.w; p += TW) {
-                    x.beginPath();
-                    x.moveTo(p*S,0);
-                    x.lineTo(p*S,c.height);
-                    x.stroke();
-                }
-                for (let p = sy; p <= w.h; p += TH) {
-                    const y = c.height - p*S;
-                    x.beginPath();
-                    x.moveTo(0,y);
-                    x.lineTo(c.width,y);
-                    x.stroke();
-                }
-                const cm = {red:'rgba(255,0,0,0.15)',green:'rgba(0,255,0,0.15)',blue:'rgba(0,0,255,0.15)',yellow:'rgba(255,255,0,0.25)'};
-                const cs = {red:'#f00',green:'#0f0',blue:'#00f',yellow:'#fc0'};
-                zones.filter(z => z.wi === i).forEach(z => {
-                    const zx = z.s === 'left' ? 0 : (w.w - z.w) * S;
-                    const zy = c.height - z.h * S;
-                    x.fillStyle = cm[z.c];
-                    x.fillRect(zx,zy,z.w*S,z.h*S);
-                    x.strokeStyle = cs[z.c];
-                    x.lineWidth = 3;
-                    x.strokeRect(zx,zy,z.w*S,z.h*S);
-                });
-                wins.filter(wn => wn.wi === i).forEach(wn => {
-                    const wx = wn.d * S;
-                    const wy = c.height - (wn.db + wn.h) * S;
-                    x.fillStyle = 'rgba(135,206,250,0.3)';
-                    x.fillRect(wx,wy,wn.w*S,wn.h*S);
-                    x.strokeStyle = '#1976D2';
-                    x.lineWidth = 4;
-                    x.strokeRect(wx,wy,wn.w*S,wn.h*S);
-                    x.beginPath();
-                    x.moveTo(wx,wy);
-                    x.lineTo(wx+wn.w*S,wy+wn.h*S);
-                    x.stroke();
-                    x.beginPath();
-                    x.moveTo(wx+wn.w*S,wy);
-                    x.lineTo(wx,wy+wn.h*S);
-                    x.stroke();
-                });
-                taps.filter(t => t.wi === i).forEach(t => {
-                    const tx = t.x*S, ty = c.height-t.y*S, r = (t.d/2)*S;
-                    x.strokeStyle = '#FF6B00';
-                    x.lineWidth = 3;
-                    const sz = r+5;
-                    x.beginPath();
-                    x.moveTo(tx-sz,ty-sz);
-                    x.lineTo(tx+sz,ty+sz);
-                    x.stroke();
-                    x.beginPath();
-                    x.moveTo(tx+sz,ty-sz);
-                    x.lineTo(tx-sz,ty+sz);
-                    x.stroke();
-                    x.beginPath();
-                    x.arc(tx,ty,r,0,Math.PI*2);
-                    x.stroke();
-                    x.fillStyle = '#FF6B00';
-                    x.font = 'bold 12px Arial';
-                    x.fillText(`⌀${t.d}`,tx+r+8,ty-5);
-                });
+        function drawWall(idx) {
+            const wall = walls[idx];
+            const ctx = wall.ctx;
+            const canvas = wall.canvas;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 0.5;
+            for (let x = 0; x <= wall.w; x += GRID) {
+                ctx.beginPath();
+                ctx.moveTo(x*SCALE, 0);
+                ctx.lineTo(x*SCALE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= wall.h; y += GRID) {
+                const py = canvas.height - y*SCALE;
+                ctx.beginPath();
+                ctx.moveTo(0, py);
+                ctx.lineTo(canvas.width, py);
+                ctx.stroke();
+            }
+            
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 2;
+            const sx = (wall.offsetX % tileW) - tileW;
+            const sy = (verticalOffset % tileH) - tileH;
+            for (let x = sx; x <= wall.w; x += tileW) {
+                ctx.beginPath();
+                ctx.moveTo(x*SCALE, 0);
+                ctx.lineTo(x*SCALE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = sy; y <= wall.h; y += tileH) {
+                const py = canvas.height - y*SCALE;
+                ctx.beginPath();
+                ctx.moveTo(0, py);
+                ctx.lineTo(canvas.width, py);
+                ctx.stroke();
+            }
+            
+            const colors = {red:'rgba(255,0,0,0.15)',green:'rgba(0,255,0,0.15)',blue:'rgba(0,0,255,0.15)',yellow:'rgba(255,255,0,0.25)'};
+            const strokes = {red:'#f00',green:'#0f0',blue:'#00f',yellow:'#fc0'};
+            zones.filter(z => z.wall === idx).forEach(z => {
+                const zx = z.side === 'left' ? 0 : (wall.w - z.w) * SCALE;
+                const zy = canvas.height - z.h * SCALE;
+                ctx.fillStyle = colors[z.color];
+                ctx.fillRect(zx, zy, z.w*SCALE, z.h*SCALE);
+                ctx.strokeStyle = strokes[z.color];
+                ctx.lineWidth = 3;
+                ctx.strokeRect(zx, zy, z.w*SCALE, z.h*SCALE);
             });
-            document.getElementById('info').textContent = `Смещение: ↕ ${VY.toFixed(1)} см`;
+            
+            windows.filter(w => w.wall === idx).forEach(w => {
+                const wx = w.left * SCALE;
+                const wy = canvas.height - (w.bottom + w.h) * SCALE;
+                ctx.fillStyle = 'rgba(135,206,250,0.3)';
+                ctx.fillRect(wx, wy, w.w*SCALE, w.h*SCALE);
+                ctx.strokeStyle = '#1976D2';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(wx, wy, w.w*SCALE, w.h*SCALE);
+                ctx.beginPath();
+                ctx.moveTo(wx, wy);
+                ctx.lineTo(wx+w.w*SCALE, wy+w.h*SCALE);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(wx+w.w*SCALE, wy);
+                ctx.lineTo(wx, wy+w.h*SCALE);
+                ctx.stroke();
+            });
+            
+            taps.filter(t => t.wall === idx).forEach(tap => {
+                const tx = tap.x * SCALE;
+                const ty = canvas.height - tap.y * SCALE;
+                const r = (tap.d / 2) * SCALE;
+                ctx.strokeStyle = '#FF6B00';
+                ctx.lineWidth = 3;
+                const s = r + 5;
+                ctx.beginPath();
+                ctx.moveTo(tx-s, ty-s);
+                ctx.lineTo(tx+s, ty+s);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(tx+s, ty-s);
+                ctx.lineTo(tx-s, ty+s);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(tx, ty, r, 0, Math.PI*2);
+                ctx.stroke();
+                ctx.fillStyle = '#FF6B00';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(`⌀${tap.d}`, tx+r+8, ty-5);
+            });
         }
         
-        function md(e) {
-            drag = true;
-            dw = +e.target.dataset.i;
-            const r = e.target.getBoundingClientRect();
-            dx = e.clientX - r.left;
-            dy = e.clientY - r.top;
+        function drawAll() {
+            walls.forEach((w, i) => drawWall(i));
+            document.getElementById('offsetInfo').textContent = `${t('offset')}: ↕ ${verticalOffset.toFixed(1)} cm`;
         }
         
-        function mm(e) {
-            if (!drag || dw === -1) return;
-            const r = walls[dw].c.getBoundingClientRect();
-            const cx = e.clientX - r.left;
-            const cy = e.clientY - r.top;
-            walls[dw].ox += (cx - dx) / S;
-            VY += -(cy - dy) / S;
-            dx = cx;
-            dy = cy;
-            draw();
+        function applyAll() {
+            walls.forEach((wall, i) => {
+                const wEl = document.getElementById(`wallW${i}`);
+                const hEl = document.getElementById(`wallH${i}`);
+                if (wEl) {
+                    const v = parseInt(wEl.value);
+                    if (v >= 50 && v <= 1000) wall.w = v;
+                }
+                if (hEl) {
+                    const v = parseInt(hEl.value);
+                    if (v >= 50 && v <= 1000) wall.h = v;
+                }
+            });
+            const tw = parseInt(document.getElementById('tileW').value);
+            const th = parseInt(document.getElementById('tileH').value);
+            if (tw >= 10 && tw <= 200) tileW = tw;
+            if (th >= 10 && th <= 200) tileH = th;
+            walls.forEach(w => w.offsetX = 0);
+            verticalOffset = 0;
+            initCanvas();
         }
         
-        function mu() {
-            drag = false;
-            dw = -1;
-        }
-        
-        function reset() {
-            walls.forEach(w => w.ox = 0);
-            VY = 0;
-            draw();
+        function resetAll() {
+            walls.forEach(w => w.offsetX = 0);
+            verticalOffset = 0;
+            drawAll();
         }
         
         function addZone() {
-            const wi = +document.getElementById('zoneWall').value;
-            const s = document.getElementById('zoneSide').value;
-            const w = +document.getElementById('zoneW').value;
-            const h = +document.getElementById('zoneH').value;
-            const c = document.getElementById('zoneColor').value;
+            const wall = parseInt(document.getElementById('zoneWall').value);
+            const side = document.getElementById('zoneSide').value;
+            const w = parseInt(document.getElementById('zoneW').value);
+            const h = parseInt(document.getElementById('zoneH').value);
+            const color = document.getElementById('zoneColor').value;
             if (!w || !h) return;
-            zones.push({id:zid++,wi,s,w,h,c});
+            zones.push({id:zoneCounter++, wall, side, w, h, color});
             updateZoneList();
-            draw();
+            drawAll();
         }
         
         function delZone(id) {
             zones = zones.filter(z => z.id !== id);
             updateZoneList();
-            draw();
+            drawAll();
         }
         
         function updateZoneList() {
-            const e = document.getElementById('zoneList');
+            const el = document.getElementById('zoneList');
             if (!zones.length) {
-                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+                el.innerHTML = `<div style="color:#666;font-style:italic;">${t('none')}</div>`;
                 return;
             }
-            const em = {red:'🔴',green:'🟢',blue:'🔵',yellow:'🟡'};
-            let h = '';
+            const emoji = {red:'🔴',green:'🟢',blue:'🔵',yellow:'🟡'};
+            let html = '';
             zones.forEach(z => {
-                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>${em[z.c]} Стена ${z.wi+1}: ${z.w}×${z.h} см</span><button onclick="delZone(${z.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+                const side = z.side === 'left' ? t('left') : t('right');
+                html += `<div class="item"><span>${emoji[z.color]} ${t('wall')} ${z.wall+1}: ${side}, ${z.w}×${z.h} cm</span><button class="del-btn" onclick="delZone(${z.id})">${t('del')}</button></div>`;
             });
-            e.innerHTML = h;
+            el.innerHTML = html;
         }
         
         function addWin() {
-            const wi = +document.getElementById('winWall').value;
-            const d = +document.getElementById('winDist').value;
-            const db = +document.getElementById('winDistBottom').value;
-            const w = +document.getElementById('winW').value;
-            const h = +document.getElementById('winH').value;
+            const wall = parseInt(document.getElementById('winWall').value);
+            const left = parseInt(document.getElementById('winLeft').value);
+            const bottom = parseInt(document.getElementById('winBottom').value);
+            const w = parseInt(document.getElementById('winW').value);
+            const h = parseInt(document.getElementById('winH').value);
             if (!w || !h) return;
-            wins.push({id:wid++,wi,d,db,w,h});
+            windows.push({id:winCounter++, wall, left, bottom, w, h});
             updateWinList();
-            draw();
+            drawAll();
         }
         
         function delWin(id) {
-            wins = wins.filter(w => w.id !== id);
+            windows = windows.filter(w => w.id !== id);
             updateWinList();
-            draw();
+            drawAll();
         }
         
         function updateWinList() {
-            const e = document.getElementById('winList');
-            if (!wins.length) {
-                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+            const el = document.getElementById('winList');
+            if (!windows.length) {
+                el.innerHTML = `<div style="color:#666;font-style:italic;">${t('none')}</div>`;
                 return;
             }
-            let h = '';
-            wins.forEach(w => {
-                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>🪟 Стена ${w.wi+1}: ←${w.d} см, ↑${w.db} см, ${w.w}×${w.h} см</span><button onclick="delWin(${w.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+            let html = '';
+            windows.forEach(w => {
+                html += `<div class="item"><span>🪟 ${t('wall')} ${w.wall+1}: ←${w.left} cm, ↑${w.bottom} cm, ${w.w}×${w.h} cm</span><button class="del-btn" onclick="delWin(${w.id})">${t('del')}</button></div>`;
             });
-            e.innerHTML = h;
+            el.innerHTML = html;
         }
         
         function addTap() {
-            const wi = +document.getElementById('tapWall').value;
-            const x = +document.getElementById('tapX').value;
-            const y = +document.getElementById('tapY').value;
-            const d = +document.getElementById('tapD').value;
+            const wall = parseInt(document.getElementById('tapWall').value);
+            const x = parseInt(document.getElementById('tapX').value);
+            const y = parseInt(document.getElementById('tapY').value);
+            const d = parseInt(document.getElementById('tapD').value);
             if (!x || !y || !d) return;
-            taps.push({id:tid++,wi,x,y,d});
+            taps.push({id:tapCounter++, wall, x, y, d});
             updateTapList();
-            draw();
+            drawAll();
         }
         
         function delTap(id) {
             taps = taps.filter(t => t.id !== id);
             updateTapList();
-            draw();
+            drawAll();
         }
         
         function updateTapList() {
-            const e = document.getElementById('tapList');
+            const el = document.getElementById('tapList');
             if (!taps.length) {
-                e.innerHTML = '<div style="color:#666;font-style:italic;">Нет</div>';
+                el.innerHTML = `<div style="color:#666;font-style:italic;">${t('none')}</div>`;
                 return;
             }
-            let h = '';
+            let html = '';
             taps.forEach(t => {
-                h += `<div style="padding:5px;margin-top:5px;background:#fff;border-radius:3px;display:flex;justify-content:space-between;"><span>🚰 Стена ${t.wi+1}: ⌀${t.d} см</span><button onclick="delTap(${t.id})" style="padding:3px 8px;background:#dc3545;font-size:12px;">×</button></div>`;
+                html += `<div class="item"><span>🚰 ${T[lang].wall} ${t.wall+1}: (${t.x}, ${t.y}) ⌀${t.d} cm</span><button class="del-btn" onclick="delTap(${t.id})">${T[lang].del}</button></div>`;
             });
-            e.innerHTML = h;
+            el.innerHTML = html;
         }
         
-        function apply() {
-            walls.forEach((w,i) => {
-                const wEl = document.getElementById(`w${i}w`);
-                const hEl = document.getElementById(`w${i}h`);
-                if (wEl) {
-                    const wv = +wEl.value;
-                    if (wv >= 50 && wv <= 1000) w.w = wv;
-                }
-                if (hEl) {
-                    const hv = +hEl.value;
-                    if (hv >= 50 && hv <= 1000) w.h = hv;
-                }
-            });
-            const tw = +document.getElementById('tileW').value;
-            const th = +document.getElementById('tileH').value;
-            if (tw >= 10 && tw <= 200) TW = tw;
-            if (th >= 10 && th <= 200) TH = th;
-            walls.forEach(w => w.ox = 0);
-            VY = 0;
-            init();
-        }
-        
-        function changeLang() {
-            // Заглушка для смены языка
-        }
-        
-        function saveProject() {
-            const project = {
-                version: '1.0',
+        function saveData() {
+            const data = {
+                version: '2.0',
                 date: new Date().toISOString(),
-                settings: {
-                    tileWidth: TW,
-                    tileHeight: TH,
-                    verticalOffset: VY
-                },
-                walls: walls.map(w => ({
-                    width: w.w,
-                    height: w.h,
-                    horizontalOffset: w.ox
-                })),
-                zones: zones.map(z => ({
-                    wallIndex: z.wi,
-                    side: z.s,
-                    width: z.w,
-                    height: z.h,
-                    color: z.c
-                })),
-                windows: wins.map(w => ({
-                    wallIndex: w.wi,
-                    distance: w.d,
-                    distanceBottom: w.db,
-                    width: w.w,
-                    height: w.h
-                })),
-                taps: taps.map(t => ({
-                    wallIndex: t.wi,
-                    x: t.x,
-                    y: t.y,
-                    diameter: t.d
-                }))
+                tileW, tileH, verticalOffset,
+                walls: walls.map(w => ({w:w.w, h:w.h, offsetX:w.offsetX})),
+                zones: zones.map(z => ({wall:z.wall, side:z.side, w:z.w, h:z.h, color:z.color})),
+                windows: windows.map(w => ({wall:w.wall, left:w.left, bottom:w.bottom, w:w.w, h:w.h})),
+                taps: taps.map(t => ({wall:t.wall, x:t.x, y:t.y, d:t.d}))
             };
-            
-            const json = JSON.stringify(project, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `tile-layout-${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `carrelage-${new Date().toISOString().slice(0,10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            alert('Проект сохранен!');
+            alert(t('save') + '!');
         }
         
-        function loadProject(event) {
-            const file = event.target.files[0];
+        function loadData(e) {
+            const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = (ev) => {
                 try {
-                    const project = JSON.parse(e.target.result);
-                    
-                    // Загрузка настроек
-                    TW = project.settings.tileWidth || 60;
-                    TH = project.settings.tileHeight || 60;
-                    VY = project.settings.verticalOffset || 0;
-                    
-                    // Загрузка стен
-                    walls = project.walls.map(w => ({
-                        w: w.width,
-                        h: w.height,
-                        c: null,
-                        x: null,
-                        ox: w.horizontalOffset || 0
-                    }));
-                    
-                    // Загрузка зон
-                    zones = project.zones.map((z, idx) => ({
-                        id: idx,
-                        wi: z.wallIndex,
-                        s: z.side,
-                        w: z.width,
-                        h: z.height,
-                        c: z.color
-                    }));
-                    zid = zones.length;
-                    
-                    // Загрузка окон
-                    wins = project.windows.map((w, idx) => ({
-                        id: idx,
-                        wi: w.wallIndex,
-                        d: w.distance,
-                        db: w.distanceBottom,
-                        w: w.width,
-                        h: w.height
-                    }));
-                    wid = wins.length;
-                    
-                    // Загрузка кранов
-                    taps = project.taps.map((t, idx) => ({
-                        id: idx,
-                        wi: t.wallIndex,
-                        x: t.x,
-                        y: t.y,
-                        d: t.diameter
-                    }));
-                    tid = taps.length;
-                    
-                    // Обновление интерфейса
+                    const data = JSON.parse(ev.target.result);
+                    tileW = data.tileW || 60;
+                    tileH = data.tileH || 60;
+                    verticalOffset = data.verticalOffset || 0;
+                    walls = data.walls.map(w => ({w:w.w, h:w.h, canvas:null, ctx:null, offsetX:w.offsetX||0}));
+                    zones = data.zones.map((z,i) => ({id:i, wall:z.wall, side:z.side, w:z.w, h:z.h, color:z.color}));
+                    zoneCounter = zones.length;
+                    windows = data.windows.map((w,i) => ({id:i, wall:w.wall, left:w.left, bottom:w.bottom, w:w.w, h:w.h}));
+                    winCounter = windows.length;
+                    taps = data.taps.map((t,i) => ({id:i, wall:t.wall, x:t.x, y:t.y, d:t.d}));
+                    tapCounter = taps.length;
                     document.getElementById('numWalls').value = walls.length;
-                    document.getElementById('tileW').value = TW;
-                    document.getElementById('tileH').value = TH;
-                    
-                    updateInputs();
-                    updateSelects();
-                    init();
+                    document.getElementById('tileW').value = tileW;
+                    document.getElementById('tileH').value = tileH;
+                    updateWallInputs();
+                    refreshSelects();
+                    initCanvas();
                     updateZoneList();
                     updateWinList();
                     updateTapList();
-                    
-                    alert('Проект загружен!');
+                    alert(t('load') + '!');
                 } catch (err) {
-                    alert('Ошибка загрузки файла: ' + err.message);
+                    alert('Erreur: ' + err.message);
                 }
             };
             reader.readAsText(file);
-            
-            // Очистка input для возможности загрузки того же файла повторно
-            event.target.value = '';
+            e.target.value = '';
         }
         
-        updateInputs();
-        updateSelects();
-        init();
+        updateWallInputs();
+        refreshSelects();
+        initCanvas();
         updateZoneList();
         updateWinList();
         updateTapList();
