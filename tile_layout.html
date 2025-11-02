@@ -16,7 +16,6 @@
         .wall-header { font-weight: bold; margin-bottom: 10px; padding: 8px; background: #4CAF50; color: white; border-radius: 5px; text-align: center; }
         canvas { border: 2px solid #333; cursor: grab; background: white; display: block; }
         canvas:active { cursor: grabbing; }
-																							 
         button { padding: 8px 16px; margin: 5px 5px 5px 0; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 14px; }
         button:hover { background: #45a049; }
         input[type="number"], select { padding: 5px; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; }
@@ -40,7 +39,6 @@
     <div class="content">
         <div class="section">
             <strong id="t-walls">Murs</strong>: 
-											
             <select id="numWalls" onchange="changeWallCount()">
                 <option value="1" selected>1</option>
                 <option value="2">2</option>
@@ -52,53 +50,8 @@
                 <option value="8">8</option>
                 <option value="9">9</option>
                 <option value="10">10</option>
-								 
-										   
-				  
-			
-								 
-											  
-																													
-																													
-																	 
-				  
-			
-								 
-										  
-																		  
-																																																		 
-																																				 
-																																				  
-														
-								
-								 
-							  
-								
             </select>
-																								  
-																   
-				  
-			
-								 
-										  
-																		 
-																																		 
-																																				
-																													
-																													
-																								 
-																  
-				  
-			
-								 
-											
-																		 
-																								 
-																								  
-																								  
-																								 
             <div id="wallInputs" style="margin-top: 10px;"></div>
-				  
         </div>
         
         <div class="section">
@@ -106,7 +59,9 @@
             <label><span id="t-width">Largeur</span> (cm): <input type="number" id="tileW" value="60" style="width: 70px;"></label>
             <label><span id="t-height">Hauteur</span> (cm): <input type="number" id="tileH" value="60" style="width: 70px;"></label>
             <button onclick="applyAll()" id="t-apply">Appliquer</button>
-								   
+            <br>
+            <label style="margin-top: 10px; display: inline-block;"><span id="t-tile-image">Image du carrelage</span>: <input type="file" id="tileImageInput" accept="image/*" onchange="loadTileImage(event)" style="margin-left: 5px;"></label>
+            <button onclick="clearTileImage()" style="background: #dc3545; margin-left: 10px;" id="t-clear-image">Effacer l'image</button>
         </div>
         
         <div class="section">
@@ -166,11 +121,12 @@
         let windows = [], winCounter = 0;
         let taps = [], tapCounter = 0;
         let dragging = false, dragWall = -1, dragStartX = 0, dragStartY = 0;
+        let tileImage = null, tileImageLoaded = false;
         
         const T = {
-            fr: {lang:'Langue',walls:'Murs',wall:'Mur',width:'Largeur',height:'Hauteur',tile:'Carrelage',apply:'Appliquer',zones:'Zones',side:'Côté',left:'Gauche',right:'Droite',color:'Couleur',red:'Rouge',green:'Vert',blue:'Bleu',yellow:'Jaune',addZone:'Ajouter',windows:'Fenêtres',distLeft:'Distance depuis la gauche',distBottom:'Distance depuis le bas',addWin:'Ajouter',taps:'Robinets',addTap:'Ajouter',reset:'Réinitialiser la grille',save:'Enregistrer',load:'Charger',offset:'Décalage',del:'×',none:'Aucun'},
-            ru: {lang:'Язык',walls:'Стены',wall:'Стена',width:'Ширина',height:'Высота',tile:'Плитка',apply:'Применить',zones:'Зоны',side:'Сторона',left:'Слева',right:'Справа',color:'Цвет',red:'Красный',green:'Зеленый',blue:'Синий',yellow:'Желтый',addZone:'Добавить',windows:'Окна',distLeft:'Расстояние слева',distBottom:'Расстояние снизу',addWin:'Добавить',taps:'Краны',addTap:'Добавить',reset:'Сбросить сетку',save:'Сохранить',load:'Загрузить',offset:'Смещение',del:'×',none:'Нет'},
-            en: {lang:'Language',walls:'Walls',wall:'Wall',width:'Width',height:'Height',tile:'Tile',apply:'Apply',zones:'Zones',side:'Side',left:'Left',right:'Right',color:'Color',red:'Red',green:'Green',blue:'Blue',yellow:'Yellow',addZone:'Add',windows:'Windows',distLeft:'Distance from left',distBottom:'Distance from bottom',addWin:'Add',taps:'Taps',addTap:'Add',reset:'Reset grid',save:'Save',load:'Load',offset:'Offset',del:'×',none:'None'}
+            fr: {lang:'Langue',walls:'Murs',wall:'Mur',width:'Largeur',height:'Hauteur',tile:'Carrelage',apply:'Appliquer',zones:'Zones',side:'Côté',left:'Gauche',right:'Droite',color:'Couleur',red:'Rouge',green:'Vert',blue:'Bleu',yellow:'Jaune',addZone:'Ajouter',windows:'Fenêtres',distLeft:'Distance depuis la gauche',distBottom:'Distance depuis le bas',addWin:'Ajouter',taps:'Robinets',addTap:'Ajouter',reset:'Réinitialiser la grille',save:'Enregistrer',load:'Charger',offset:'Décalage',del:'×',none:'Aucun',tileImage:'Image du carrelage',clearImage:'Effacer l\'image'},
+            ru: {lang:'Язык',walls:'Стены',wall:'Стена',width:'Ширина',height:'Высота',tile:'Плитка',apply:'Применить',zones:'Зоны',side:'Сторона',left:'Слева',right:'Справа',color:'Цвет',red:'Красный',green:'Зеленый',blue:'Синий',yellow:'Желтый',addZone:'Добавить',windows:'Окна',distLeft:'Расстояние слева',distBottom:'Расстояние снизу',addWin:'Добавить',taps:'Краны',addTap:'Добавить',reset:'Сбросить сетку',save:'Сохранить',load:'Загрузить',offset:'Смещение',del:'×',none:'Нет',tileImage:'Изображение плитки',clearImage:'Удалить изображение'},
+            en: {lang:'Language',walls:'Walls',wall:'Wall',width:'Width',height:'Height',tile:'Tile',apply:'Apply',zones:'Zones',side:'Side',left:'Left',right:'Right',color:'Color',red:'Red',green:'Green',blue:'Blue',yellow:'Yellow',addZone:'Add',windows:'Windows',distLeft:'Distance from left',distBottom:'Distance from bottom',addWin:'Add',taps:'Taps',addTap:'Add',reset:'Reset grid',save:'Save',load:'Load',offset:'Offset',del:'×',none:'None',tileImage:'Tile image',clearImage:'Clear image'}
         };
         
         function t(key) { return T[lang][key] || key; }
@@ -212,6 +168,8 @@
             setTxt('t-reset', t('reset'));
             setTxt('t-save', t('save'));
             setTxt('t-load', t('load'));
+            setTxt('t-tile-image', t('tileImage'));
+            setTxt('t-clear-image', t('clearImage'));
             
             // Обновляем динамический контент
             updateWallInputs();
@@ -247,8 +205,6 @@
             let html = '';
             walls.forEach((wall, i) => {
                 html += `<div class="wall-input"><strong>${t('wall')} ${i+1}:</strong> <label>${t('width')}: <input type="number" id="wallW${i}" value="${wall.w}" min="50" max="1000" style="width:65px;"></label> <label>${t('height')}: <input type="number" id="wallH${i}" value="${wall.h}" min="50" max="1000" style="width:65px;"></label></div>`;
-													  
-									   
             });
             document.getElementById('wallInputs').innerHTML = html;
         }
@@ -257,26 +213,9 @@
             let opts = '';
             walls.forEach((w, i) => opts += `<option value="${i}">${i+1}</option>`);
             ['zoneWall', 'winWall', 'tapWall'].forEach(id => {
-														
-											 
-														
-										   
-																		  
-								 
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = opts;
-									
-								 
-						 
-										  
-									
-									
-								  
-									 
-								  
-								 
             });
-				   
         }
         
         function initCanvas() {
@@ -308,21 +247,6 @@
                     if (!dragging || dragWall !== i) return;
                     const rect = canvas.getBoundingClientRect();
                     const x = e.clientX - rect.left;
-									
-										   
-							   
-				 
-													 
-											 
-								  
-								  
-										
-							   
-				 
-																																										   
-																																			
-															
-																	
                     const y = e.clientY - rect.top;
                     walls[dragWall].offsetX += (x - dragStartX) / SCALE;
                     verticalOffset -= (y - dragStartY) / SCALE;
@@ -334,39 +258,6 @@
                 
                 div.appendChild(canvas);
                 container.appendChild(div);
-													
-											  
-									
-													  
-								  
-									
-												  
-							   
-								  
-										   
-										   
-							   
-				   
-														   
-																		 
-											  
-									
-								   
-								  
-										  
-										  
-							   
-								  
-										  
-										  
-							   
-								  
-											   
-							   
-											
-											   
-														
-				   
             });
             drawAll();
         }
@@ -400,6 +291,25 @@
             ctx.lineWidth = 2;
             const sx = (wall.offsetX % tileW) - tileW;
             const sy = (verticalOffset % tileH) - tileH;
+            
+            // Remplir avec l'image du carrelage si disponible
+            if (tileImageLoaded && tileImage) {
+                for (let x = sx; x <= wall.w; x += tileW) {
+                    for (let y = sy; y <= wall.h; y += tileH) {
+                        const px = x * SCALE;
+                        const py = canvas.height - (y + tileH) * SCALE;
+                        const pw = tileW * SCALE;
+                        const ph = tileH * SCALE;
+                        
+                        // Dessiner l'image dans chaque carreau
+                        if (px + pw >= 0 && px <= canvas.width && py + ph >= 0 && py <= canvas.height) {
+                            ctx.drawImage(tileImage, px, py, pw, ph);
+                        }
+                    }
+                }
+            }
+            
+            // Dessiner la grille par-dessus
             for (let x = sx; x <= wall.w; x += tileW) {
                 ctx.beginPath();
                 ctx.moveTo(x*SCALE, 0);
@@ -471,13 +381,6 @@
         function drawAll() {
             walls.forEach((w, i) => drawWall(i));
             document.getElementById('offsetInfo').textContent = `${t('offset')}: ↕ ${verticalOffset.toFixed(1)} cm`;
-										  
-										 
-										  
-								 
-					
-					
-				   
         }
         
         function applyAll() {
@@ -598,34 +501,8 @@
             let html = '';
             taps.forEach(t => {
                 html += `<div class="item"><span>🚰 ${T[lang].wall} ${t.wall+1}: (${t.x}, ${t.y}) ⌀${t.d} cm</span><button class="del-btn" onclick="delTap(${t.id})">${T[lang].del}</button></div>`;
-			   
-							
-		 
-		
-						  
-									
-															  
-															  
-						  
-										  
-														 
-				 
-						  
-										  
-														 
-				 
             });
             el.innerHTML = html;
-															   
-											   
-											   
-										 
-				   
-				   
-		 
-		
-							   
-							  
         }
         
         function saveData() {
@@ -633,39 +510,12 @@
                 version: '2.0',
                 date: new Date().toISOString(),
                 tileW, tileH, verticalOffset,
-								  
-								   
-									  
-				  
                 walls: walls.map(w => ({w:w.w, h:w.h, offsetX:w.offsetX})),
                 zones: zones.map(z => ({wall:z.wall, side:z.side, w:z.w, h:z.h, color:z.color})),
                 windows: windows.map(w => ({wall:w.wall, left:w.left, bottom:w.bottom, w:w.w, h:w.h})),
-										  
-					
-										
-									
-							  
-							   
-								
-							  
-					
-										 
-									
-								  
-										 
-							   
-							   
-					
                 taps: taps.map(t => ({wall:t.wall, x:t.x, y:t.y, d:t.d}))
-									
-						   
-						   
-								 
-				   
             };
-			
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-																		
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -678,79 +528,142 @@
         function loadData(e) {
             const file = e.target.files[0];
             if (!file) return;
-			
             const reader = new FileReader();
             reader.onload = (ev) => {
                 try {
                     const data = JSON.parse(ev.target.result);
-                    tileW = data.tileW || 60;
-                    tileH = data.tileH || 60;
-														  
-														   
-                    verticalOffset = data.verticalOffset || 0;
-                    walls = data.walls.map(w => ({w:w.w, h:w.h, canvas:null, ctx:null, offsetX:w.offsetX||0}));
-                    zones = data.zones.map((z,i) => ({id:i, wall:z.wall, side:z.side, w:z.w, h:z.h, color:z.color}));
-													 
-								   
-									
-								
-								
-												   
-						
-					
-											  
-															
-								
-										
-								  
-								   
-									
-								  
-						
+                    
+                    // Support pour version 1.0 et 2.0
+                    if (data.version === '1.0' && data.settings) {
+                        // Format version 1.0
+                        tileW = data.settings.tileWidth || 60;
+                        tileH = data.settings.tileHeight || 60;
+                        verticalOffset = data.settings.verticalOffset || 0;
+                        
+                        walls = data.walls.map(w => ({
+                            w: w.width,
+                            h: w.height,
+                            canvas: null,
+                            ctx: null,
+                            offsetX: w.horizontalOffset || 0
+                        }));
+                        
+                        zones = data.zones.map((z, i) => ({
+                            id: i,
+                            wall: z.wallIndex,
+                            side: z.side,
+                            w: z.width,
+                            h: z.height,
+                            color: z.color
+                        }));
+                        
+                        windows = data.windows.map((w, i) => ({
+                            id: i,
+                            wall: w.wallIndex,
+                            left: w.distance,
+                            bottom: w.distanceBottom,
+                            w: w.width,
+                            h: w.height
+                        }));
+                        
+                        taps = data.taps.map((t, i) => ({
+                            id: i,
+                            wall: t.wallIndex,
+                            x: t.x,
+                            y: t.y,
+                            d: t.diameter
+                        }));
+                    } else {
+                        // Format version 2.0
+                        tileW = data.tileW || 60;
+                        tileH = data.tileH || 60;
+                        verticalOffset = data.verticalOffset || 0;
+                        
+                        walls = data.walls.map(w => ({
+                            w: w.w,
+                            h: w.h,
+                            canvas: null,
+                            ctx: null,
+                            offsetX: w.offsetX || 0
+                        }));
+                        
+                        zones = data.zones.map((z, i) => ({
+                            id: i,
+                            wall: z.wall,
+                            side: z.side,
+                            w: z.w,
+                            h: z.h,
+                            color: z.color
+                        }));
+                        
+                        windows = data.windows.map((w, i) => ({
+                            id: i,
+                            wall: w.wall,
+                            left: w.left,
+                            bottom: w.bottom,
+                            w: w.w,
+                            h: w.h
+                        }));
+                        
+                        taps = data.taps.map((t, i) => ({
+                            id: i,
+                            wall: t.wall,
+                            x: t.x,
+                            y: t.y,
+                            d: t.d
+                        }));
+                    }
+                    
                     zoneCounter = zones.length;
-                    windows = data.windows.map((w,i) => ({id:i, wall:w.wall, left:w.left, bottom:w.bottom, w:w.w, h:w.h}));
-												
-															 
-								
-										
-									  
-											 
-								   
-								   
-						
                     winCounter = windows.length;
-					
-													
-                    taps = data.taps.map((t,i) => ({id:i, wall:t.wall, x:t.x, y:t.y, d:t.d}));
-								
-										
-							   
-							   
-									 
-						
                     tapCounter = taps.length;
-					
-								
+                    
                     document.getElementById('numWalls').value = walls.length;
                     document.getElementById('tileW').value = tileW;
                     document.getElementById('tileH').value = tileH;
+                    
                     updateWallInputs();
                     refreshSelects();
                     initCanvas();
-						   
                     updateZoneList();
                     updateWinList();
                     updateTapList();
                     alert(t('load') + '!');
-							  
                 } catch (err) {
                     alert('Erreur: ' + err.message);
                 }
             };
             reader.readAsText(file);
-			
-																				   
             e.target.value = '';
+        }
+        
+        function loadTileImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    tileImage = img;
+                    tileImageLoaded = true;
+                    drawAll();
+                    alert(t('load') + '!');
+                };
+                img.onerror = () => {
+                    alert('Erreur de chargement de l\'image');
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+        
+        function clearTileImage() {
+            tileImage = null;
+            tileImageLoaded = false;
+            document.getElementById('tileImageInput').value = '';
+            drawAll();
         }
         
         updateWallInputs();
